@@ -1,0 +1,17 @@
+.RData
+.Rhistory
+.Rproj.user/
+renv/library/
+data/
+results/
+output/
+figures/
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.png
+*.pdf
+*.svg
+*.log
+.DS_Store

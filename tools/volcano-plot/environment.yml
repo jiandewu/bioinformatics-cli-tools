@@ -1,0 +1,6 @@
+name: volcano-plot-cli
+channels:
+  - conda-forge
+dependencies:
+  - r-base=4.4
+  - r-ggplot2=3.5
