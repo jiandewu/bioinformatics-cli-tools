@@ -1,0 +1,43 @@
+# FastQC input and output
+*_fastqc.zip
+*_fastqc/
+fastqc_data.txt
+summary.tsv
+results/
+
+# Sequencing data
+data/
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.bam
+*.sam
+*.cram
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Manuscripts, credentials, and local configuration
+manuscript/
+manuscripts/
+drafts/
+manuscript*.docx
+manuscript*.pdf
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
