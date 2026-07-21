@@ -1,0 +1,34 @@
+# R session files
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Input data and generated results
+data/
+results/
+*.h5
+*.hdf5
+*.rds
+*.rda
+*.RData
+
+# Manuscripts and drafts
+manuscript/
+manuscripts/
+drafts/
+manuscript*.docx
+manuscript*.pdf
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

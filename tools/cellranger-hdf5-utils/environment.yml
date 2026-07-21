@@ -1,0 +1,8 @@
+name: cellranger-hdf5-utils
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4
+  - r-matrix
+  - bioconductor-rhdf5
