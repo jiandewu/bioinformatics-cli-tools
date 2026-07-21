@@ -73,6 +73,37 @@ class VariantFileUtilsTests(unittest.TestCase):
         self.assertIn('"raw_variants": 4', output.getvalue())
         self.assertIn('"mean_depth": 10.0', output.getvalue())
 
+    def test_allele_balance_windows_and_sample_selection(self):
+        vcf = self.root / "multisample.vcf"
+        vcf.write_text(
+            "##fileformat=VCFv4.2\n"
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tcase\tcontrol\n"
+            "chr1\t1\t.\tA\tG\t50\tPASS\t.\tGT:AD\t0/1:6,4\t0/0:9,1\n"
+            "chr1\t100\t.\tC\tT,G\t50\tPASS\t.\tGT:AD\t1/2:5,2,3\t0/0:10,0,0\n"
+            "chr1\t1001\t.\tG\tA\t50\tPASS\t.\tGT:AD\t0/1:8,2\t0/0:10,0\n"
+            "chr1\t1100\t.\tT\tC\t50\tPASS\t.\tGT:DP\t0/1:10\t0/0:10\n"
+        )
+        rows = tool.allele_balance_rows(str(vcf), ["case"], 1000, 4, 79, 1)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["start"], 1)
+        self.assertEqual(rows[0]["variants"], 2)
+        self.assertEqual(rows[0]["ref_depth"], 11)
+        self.assertEqual(rows[0]["alt_depth"], 9)
+        self.assertEqual(rows[0]["alt_fraction"], 0.45)
+        self.assertEqual(rows[1]["start"], 1001)
+
+    def test_allele_balance_cli_defaults_to_all_samples(self):
+        vcf = self.root / "multisample.vcf"
+        vcf.write_text(
+            "##fileformat=VCFv4.2\n"
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tfirst\tsecond\n"
+            "chr2\t5\t.\tA\tG\t50\tPASS\t.\tGT:AD\t0/1:5,5\t0/1:7,3\n"
+        )
+        output = io.StringIO()
+        with redirect_stdout(output):
+            tool.main(["allele-balance", str(vcf), "--min-variants", "1"])
+        self.assertIn("first\tchr2", output.getvalue())
+        self.assertIn("second\tchr2", output.getvalue())
 
 if __name__ == "__main__":
     unittest.main()

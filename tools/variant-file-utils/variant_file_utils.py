@@ -7,7 +7,9 @@ import argparse
 import csv
 import gzip
 import json
+import math
 import sys
+from collections import defaultdict
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Iterable, TextIO
@@ -166,6 +168,125 @@ def command_filter(args: argparse.Namespace) -> None:
             output_handle.write(line)
 
 
+def parse_sample_depth(format_value: str, sample_value: str, path: str, line_number: int) -> tuple[int, int] | None:
+    keys = format_value.split(":")
+    if "AD" not in keys:
+        return None
+    values = sample_value.split(":")
+    ad_index = keys.index("AD")
+    if ad_index >= len(values) or values[ad_index] in ("", "."):
+        return None
+    depths = values[ad_index].split(",")
+    if len(depths) < 2 or any(value == "." for value in depths):
+        return None
+    try:
+        numeric_depths = [int(value) for value in depths]
+    except ValueError as error:
+        raise ValueError(f"{path}:{line_number}: invalid AD value {values[ad_index]!r}") from error
+    if any(value < 0 for value in numeric_depths):
+        raise ValueError(f"{path}:{line_number}: AD depths cannot be negative")
+    return numeric_depths[0], sum(numeric_depths[1:])
+
+
+def allele_balance_rows(
+    path: str,
+    selected_samples: list[str],
+    window_size: int,
+    min_depth_value: int,
+    max_depth_value: int | None,
+    min_variants: int,
+) -> list[dict[str, object]]:
+    sample_names: list[str] | None = None
+    sample_indices: list[int] = []
+    aggregates: dict[tuple[str, str, int], list[int]] = defaultdict(lambda: [0, 0, 0])
+
+    with open_text(path) as handle:
+        for line_number, line in enumerate(handle, 1):
+            if line.startswith("##") or not line.strip():
+                continue
+            if line.startswith("#CHROM"):
+                header = line.rstrip("\n").split("\t")
+                sample_names = header[9:]
+                if not sample_names:
+                    raise ValueError(f"{path}:{line_number}: VCF has no sample columns")
+                requested = selected_samples or sample_names
+                missing = [sample for sample in requested if sample not in sample_names]
+                if missing:
+                    raise ValueError(f"{path}: sample(s) not found: {', '.join(missing)}")
+                sample_indices = [sample_names.index(sample) for sample in requested]
+                selected_samples = requested
+                continue
+            if line.startswith("#"):
+                continue
+            if sample_names is None:
+                raise ValueError(f"{path}:{line_number}: missing #CHROM header")
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 9 + len(sample_names):
+                raise ValueError(f"{path}:{line_number}: sample columns do not match the VCF header")
+            try:
+                position = int(fields[1])
+            except ValueError as error:
+                raise ValueError(f"{path}:{line_number}: invalid POS {fields[1]!r}") from error
+            if position < 1:
+                raise ValueError(f"{path}:{line_number}: POS must be positive")
+            window_index = (position - 1) // window_size
+            for sample, sample_index in zip(selected_samples, sample_indices):
+                depths = parse_sample_depth(fields[8], fields[9 + sample_index], path, line_number)
+                if depths is None:
+                    continue
+                ref_depth, alt_depth = depths
+                total_depth = ref_depth + alt_depth
+                if total_depth < min_depth_value:
+                    continue
+                if max_depth_value is not None and total_depth > max_depth_value:
+                    continue
+                values = aggregates[(sample, fields[0], window_index)]
+                values[0] += 1
+                values[1] += ref_depth
+                values[2] += alt_depth
+
+    if sample_names is None:
+        raise ValueError(f"{path}: missing #CHROM header")
+
+    rows: list[dict[str, object]] = []
+    for (sample, chromosome, window_index), (variant_count, ref_depth, alt_depth) in aggregates.items():
+        if variant_count < min_variants:
+            continue
+        total = ref_depth + alt_depth
+        rows.append({
+            "sample": sample,
+            "chromosome": chromosome,
+            "start": window_index * window_size + 1,
+            "end": (window_index + 1) * window_size,
+            "variants": variant_count,
+            "ref_depth": ref_depth,
+            "alt_depth": alt_depth,
+            "alt_fraction": alt_depth / total if total else None,
+            "alt_ref_ratio": alt_depth / ref_depth if ref_depth else math.inf,
+        })
+    return rows
+
+
+def command_allele_balance(args: argparse.Namespace) -> None:
+    rows = allele_balance_rows(
+        args.input,
+        args.sample,
+        args.window_size,
+        args.min_depth,
+        args.max_depth,
+        args.min_variants,
+    )
+    output_context = open(args.output, "w", encoding="utf-8", newline="") if args.output != "-" else nullcontext(sys.stdout)
+    fieldnames = [
+        "sample", "chromosome", "start", "end", "variants", "ref_depth",
+        "alt_depth", "alt_fraction", "alt_ref_ratio",
+    ]
+    with output_context as output:
+        writer = csv.DictWriter(output, fieldnames=fieldnames, delimiter="\t", lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -186,6 +307,18 @@ def build_parser() -> argparse.ArgumentParser:
     filtering.add_argument("--pass-only", action="store_true", help="keep only records whose FILTER is PASS")
     filtering.add_argument("--output", default="-", help="output VCF path (default: stdout)")
     filtering.set_defaults(func=command_filter)
+
+    balance = subparsers.add_parser(
+        "allele-balance", help="aggregate FORMAT/AD allele depths in genomic windows"
+    )
+    balance.add_argument("input", help="input multisample .vcf or .vcf.gz")
+    balance.add_argument("--sample", action="append", default=[], help="sample name (repeatable; default: all)")
+    balance.add_argument("--window-size", type=int, default=1_000_000, help="window size in bases (default: 1000000)")
+    balance.add_argument("--min-depth", type=int, default=4, help="minimum ref+alt depth (default: 4)")
+    balance.add_argument("--max-depth", type=int, default=79, help="maximum ref+alt depth (default: 79)")
+    balance.add_argument("--min-variants", type=int, default=10, help="minimum variants per output window (default: 10)")
+    balance.add_argument("--output", default="-", help="output TSV path (default: stdout)")
+    balance.set_defaults(func=command_allele_balance)
     return parser
 
 
@@ -193,6 +326,11 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        for name in ("window_size", "min_depth", "max_depth", "min_variants"):
+            if hasattr(args, name) and getattr(args, name) is not None and getattr(args, name) < 1:
+                raise ValueError(f"--{name.replace('_', '-')} must be at least 1")
+        if hasattr(args, "max_depth") and args.max_depth is not None and args.max_depth < args.min_depth:
+            raise ValueError("--max-depth must be greater than or equal to --min-depth")
         args.func(args)
     except (OSError, ValueError) as error:
         parser.exit(2, f"error: {error}\n")

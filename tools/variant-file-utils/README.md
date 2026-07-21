@@ -40,6 +40,24 @@ Header lines are preserved. Records with missing QUAL are excluded when
 filtering; it is not a replacement for caller-specific recalibration or best
 practices workflows.
 
+## Summarize allele balance by genomic window
+
+```bash
+python variant_file_utils.py allele-balance calls.vcf.gz \
+  --sample sample-01 \
+  --window-size 1000000 \
+  --min-depth 4 \
+  --max-depth 79 \
+  --min-variants 10 \
+  --output sample-01.allele-balance.tsv
+```
+
+The command reads the VCF `FORMAT/AD` field and sums reference and all
+alternate-allele depths in non-overlapping, one-based windows. It reports both
+the alternate-read fraction and alternate/reference ratio. Repeat `--sample`
+to select multiple samples; omit it to process every sample in the VCF.
+Records without usable AD values or outside the depth range are skipped.
+
 ## Test
 
 ```bash
