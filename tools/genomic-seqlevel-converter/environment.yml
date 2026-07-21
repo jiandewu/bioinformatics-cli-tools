@@ -1,0 +1,8 @@
+name: genomic-seqlevel-converter
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4
+  - bioconductor-genomeinfodb
+  - bioconductor-rtracklayer

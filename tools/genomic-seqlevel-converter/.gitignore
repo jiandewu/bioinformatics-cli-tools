@@ -1,0 +1,35 @@
+# Input annotations and generated conversions
+data/
+results/
+*.gff
+*.gff.gz
+*.gff3
+*.gff3.gz
+*.gtf
+*.gtf.gz
+*.bed
+*.bed.gz
+
+# R session files
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Manuscripts, credentials, and local configuration
+manuscript/
+manuscripts/
+drafts/
+manuscript*.docx
+manuscript*.pdf
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
