@@ -19,6 +19,10 @@ cd "$project_dir"
   cd tools/delimited-table-transformer
   PYTHONDONTWRITEBYTECODE=1 "$python_bin" -m unittest discover -s tests -v
 )
+(
+  cd tools/variant-file-utils
+  PYTHONDONTWRITEBYTECODE=1 "$python_bin" -m unittest discover -s tests -v
+)
 
 if command -v "$rscript_bin" >/dev/null 2>&1 || test -x "$rscript_bin"; then
   R_DEFAULT_PACKAGES=NULL "$rscript_bin" --vanilla -e '

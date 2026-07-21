@@ -13,6 +13,7 @@ its own documentation, tests, and Conda environment.
 | [Genomic seqlevel converter](tools/genomic-seqlevel-converter/) | R | Convert genomic sequence naming styles in annotation files. |
 | [Tabular column selector](tools/tabular-column-selector/) | Python | Keep or remove delimited-table columns by exact header name. |
 | [Delimited table transformer](tools/delimited-table-transformer/) | Python | Transpose, swap, deduplicate, match, and aggregate delimited tables. |
+| [Variant file utilities](tools/variant-file-utils/) | Python | Summarize VCF, depth, and Picard metrics or filter VCF records. |
 | [Cell Ranger HDF5 utilities](tools/cellranger-hdf5-utils/) | R | Inspect and merge Cell Ranger feature-barcode HDF5 matrices. |
 
 ## Use a tool
