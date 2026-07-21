@@ -1,0 +1,16 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.RData
+.Rhistory
+.Rproj.user/
+.venv/
+env/
+data/
+results/
+output/
+figures/
+*.log
